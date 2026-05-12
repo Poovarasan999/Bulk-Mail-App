@@ -84,14 +84,14 @@ const sendBulkMail = async (req, res) => {
       console.error("[mail] could not save failed record:", dbErr.message);
     }
 
+    const smtpHost =
+      process.env.MAIL_HOST?.trim() ||
+      (process.env.SMTP_URL ? "(SMTP_URL host)" : "smtp.gmail.com");
     let detail = error.message || "SMTP error";
     if (/Invalid login|535|534|EAUTH|authentication failed/i.test(detail)) {
-      detail +=
-        " Use a 16-character Google App Password (not your Gmail password).";
-    } else if (/timeout|ETIMEDOUT|ECONNRESET|ENETUNREACH|ESOCKET|EHOSTUNREACH/i.test(detail)) {
-      detail =
-        "Could not connect to Gmail SMTP. Your network/ISP is blocking outbound ports 587 and 465. " +
-        "Try a mobile hotspot or a different network, or set SMTP_URL (Resend / Brevo / SendGrid) which uses HTTPS-friendly SMTP.";
+      detail += ` Authentication failed against ${smtpHost}. Check MAIL_USER / MAIL_PASS env values.`;
+    } else if (/timeout|ETIMEDOUT|ECONNRESET|ENETUNREACH|ESOCKET|EHOSTUNREACH|EAI_AGAIN/i.test(detail)) {
+      detail = `Could not connect to ${smtpHost} on port ${process.env.MAIL_PORT || 587}. Network/firewall may be blocking it. Check server logs for details.`;
     }
 
     return res.status(500).json({
