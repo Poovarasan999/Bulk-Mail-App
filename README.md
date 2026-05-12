@@ -1,66 +1,95 @@
-# Bulk Mail App (MERN)
+# Bulk Mail App
 
-Full-stack bulk mail application built with React (frontend), Express/Node.js (backend), and MongoDB (database).
+A Full Stack Bulk Mail Application built using the MERN stack.  
+This app allows users to send bulk emails, validate recipients, and manage email history.
 
-## Features
+---
 
-- Compose bulk email with subject, body, and multiple recipients.
-- Recipient parsing from comma, semicolon, or newline-separated input.
-- API-based sending through Nodemailer.
-- MongoDB storage for email logs (`success` / `failed`).
-- Email history view in the frontend.
+## 🚀 Tech Stack
 
-## Project Structure
+| Layer | Stack | Status |
+|-------|-------|--------|
+| Frontend | React + Vite + Tailwind CSS | ✅ Deployed on Vercel |
+| Backend | Node.js + Express | ✅ Deployed on Render |
+| Database | MongoDB Atlas | ✅ Connected |
+| Email | Brevo HTTPS API | ✅ Sending works |
+| Features | Bulk send, validation, history, delete | ✅ All working |
 
-- `frontend` - React + Vite UI
-- `backend` - Express API + MongoDB + Nodemailer
+---
 
-## Setup
+## ✨ Features
 
-### 1) Install dependencies
+- Send bulk emails
+- Email validation
+- Email history tracking
+- Delete email history
+- Responsive UI
+- Full MERN stack integration
+
+---
+
+## 🌐 Live Demo
+
+### Frontend
 
 ```bash
-cd frontend && npm install
-cd ../backend && npm install
+https://bulk-mail-h95wc6hct-poovarasan999s-projects.vercel.app/
 ```
 
-### 2) Configure backend environment
+### Backend API
 
-Copy `backend/.env.example` to `backend/.env` and fill in values:
+```bash
+https://bulk-mail-app-a0ru.onrender.com
+```
 
-- `MONGO_URI` - MongoDB connection string
-- `MAIL_USER` / `MAIL_PASS` - sender credentials (for Gmail, use App Password)
-- `MAIL_FROM` - optional display sender address
+---
 
-### 3) Run the app
 
-Backend:
+## 📦 Installation
+
+### Clone Repository
+
+```bash
+git clone https://github.com/your-username/Bulk-Mail-App.git
+```
+
+### Install Backend
 
 ```bash
 cd backend
-npm run dev
+npm install
+npm start
 ```
 
-Frontend (new terminal):
+### Install Frontend
 
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-Frontend runs on Vite default port. **Local backend:** requests to `/api` are proxied to `http://localhost:5000` (see `frontend/vite.config.js`).
+---
 
-**Backend on Render (or any remote URL):** create `frontend/.env` from `frontend/.env.example` and set:
+## 📁 Folder Structure
 
-```env
-VITE_API_BASE_URL=https://your-service-name.onrender.com
+```bash
+Bulk-Mail-App
+│
+├── backend
+│   ├── src
+│   ├── package.json
+│   └── .env
+│
+├── frontend
+│   ├── src
+│   ├── public
+│   ├── package.json
+│   └── .env
 ```
 
-No trailing slash. Restart `npm run dev` after changing env. For production builds (`npm run build`), set the same variable in your host (Vercel, Netlify, etc.).
+---
 
-## API Endpoints
+## 👨‍💻 Author
 
-- `GET /api/health` - health check
-- `POST /api/mail/send` - send bulk mail and save record
-- `GET /api/mail/history` - fetch recent email history
-- `DELETE /api/mail/history/:id` - delete one history record
+**Poovarasan E**
