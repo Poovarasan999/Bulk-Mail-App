@@ -62,6 +62,10 @@ function App() {
     }
 
     setIsSending(true);
+    const sendTimeoutMs = 90_000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), sendTimeoutMs);
+
     try {
       const response = await fetch(api("/api/mail/send"), {
         method: "POST",
@@ -71,11 +75,13 @@ function App() {
           body: form.body,
           recipients,
         }),
+        signal: controller.signal,
       });
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || "Failed to send email.");
+        const parts = [data.message, data.error].filter(Boolean);
+        throw new Error(parts.join(" ") || "Failed to send email.");
       }
 
       setStatus({ type: "success", message: data.message });
@@ -83,8 +89,13 @@ function App() {
       setIsLoadingHistory(true);
       fetchHistory();
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      const msg =
+        error.name === "AbortError"
+          ? `Request timed out after ${sendTimeoutMs / 1000}s. Check backend is running and Gmail SMTP is reachable.`
+          : error.message;
+      setStatus({ type: "error", message: msg });
     } finally {
+      clearTimeout(timeoutId);
       setIsSending(false);
     }
   };
