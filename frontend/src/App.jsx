@@ -66,8 +66,11 @@ function App() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), sendTimeoutMs);
 
+    let response;
+    let data;
+    let networkError;
     try {
-      const response = await fetch(api("/api/mail/send"), {
+      response = await fetch(api("/api/mail/send"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -77,27 +80,33 @@ function App() {
         }),
         signal: controller.signal,
       });
+      data = await response.json().catch(() => ({}));
+    } catch (err) {
+      networkError = err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-      const data = await response.json();
-      if (!response.ok) {
-        const parts = [data.message, data.error].filter(Boolean);
-        throw new Error(parts.join(" ") || "Failed to send email.");
-      }
-
+    if (networkError) {
+      const msg =
+        networkError.name === "AbortError"
+          ? `Request timed out after ${sendTimeoutMs / 1000}s. Check backend is running and SMTP is reachable.`
+          : networkError.message || "Network error while contacting backend.";
+      setStatus({ type: "error", message: msg });
+    } else if (!response.ok) {
+      const parts = [data.message, data.error].filter(Boolean);
+      setStatus({
+        type: "error",
+        message: parts.join(" ") || "Failed to send email.",
+      });
+    } else {
       setStatus({ type: "success", message: data.message });
       setForm(initialForm);
       setIsLoadingHistory(true);
       fetchHistory();
-    } catch (error) {
-      const msg =
-        error.name === "AbortError"
-          ? `Request timed out after ${sendTimeoutMs / 1000}s. Check backend is running and Gmail SMTP is reachable.`
-          : error.message;
-      setStatus({ type: "error", message: msg });
-    } finally {
-      clearTimeout(timeoutId);
-      setIsSending(false);
     }
+
+    setIsSending(false);
   };
 
   const removeHistoryItem = async (id) => {

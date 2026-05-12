@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const EmailRecord = require("../models/EmailRecord");
-const { getTransporter } = require("../utils/email");
+const { sendMailWithFallback } = require("../utils/email");
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,21 +42,8 @@ const sendBulkMail = async (req, res) => {
     return res.status(400).json({ message: validationError });
   }
 
-  let transporter;
   try {
-    transporter = getTransporter();
-  } catch (configError) {
-    if (configError.code === "MAIL_CONFIG_MISSING") {
-      return res.status(503).json({
-        message: configError.message,
-        error: "Set MAIL_USER and MAIL_PASS on the server (Render → Environment).",
-      });
-    }
-    throw configError;
-  }
-
-  try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: recipients.join(", "),
       subject,
@@ -77,6 +64,13 @@ const sendBulkMail = async (req, res) => {
   } catch (error) {
     console.error("[mail] send failed:", error.message, error.responseCode || "");
 
+    if (error.code === "MAIL_CONFIG_MISSING") {
+      return res.status(503).json({
+        message: error.message,
+        error: "Set MAIL_USER and MAIL_PASS on the server (Render → Environment) and restart.",
+      });
+    }
+
     let record = null;
     try {
       record = await EmailRecord.create({
@@ -94,10 +88,10 @@ const sendBulkMail = async (req, res) => {
     if (/Invalid login|535|534|EAUTH|authentication failed/i.test(detail)) {
       detail +=
         " Use a 16-character Google App Password (not your Gmail password).";
-    }
-    if (/timeout|ETIMEDOUT|ECONNRESET/i.test(detail)) {
-      detail +=
-        " Try GMAIL_SMTP_PORT=587 in env if port 465 is blocked.";
+    } else if (/timeout|ETIMEDOUT|ECONNRESET|ENETUNREACH|ESOCKET|EHOSTUNREACH/i.test(detail)) {
+      detail =
+        "Could not connect to Gmail SMTP. Your network/ISP is blocking outbound ports 587 and 465. " +
+        "Try a mobile hotspot or a different network, or set SMTP_URL (Resend / Brevo / SendGrid) which uses HTTPS-friendly SMTP.";
     }
 
     return res.status(500).json({
