@@ -97,7 +97,65 @@ const planTransports = () => {
   ];
 };
 
+const parseAddress = (raw) => {
+  const str = String(raw || "").trim();
+  const match = str.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) return { name: match[1] || undefined, email: match[2] };
+  return { email: str };
+};
+
+const parseRecipientList = (raw) => {
+  if (Array.isArray(raw)) return raw.map((r) => parseAddress(r)).filter((r) => r.email);
+  return String(raw || "")
+    .split(/[,;]/)
+    .map((s) => parseAddress(s))
+    .filter((r) => r.email);
+};
+
+/** Send via Brevo HTTPS API — works on any cloud (no SMTP ports needed). */
+const sendViaBrevoHttp = async (message) => {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const sender = parseAddress(message.from);
+  if (!sender.email) {
+    throw new Error("BREVO_API_KEY set but MAIL_FROM is empty.");
+  }
+
+  const payload = {
+    sender: { email: sender.email, name: sender.name || "Bulk Mail App" },
+    to: parseRecipientList(message.to),
+    subject: message.subject,
+    textContent: message.text,
+  };
+  if (message.html) payload.htmlContent = message.html;
+
+  console.log(
+    `[mail] using Brevo HTTPS API → ${payload.to.length} recipient(s) from ${sender.email}`
+  );
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const reason = data.message || data.code || response.statusText;
+    throw new Error(`Brevo API ${response.status}: ${reason}`);
+  }
+  return data;
+};
+
 const sendMailWithFallback = async (message) => {
+  const apiResult = await sendViaBrevoHttp(message);
+  if (apiResult) return apiResult;
+
   const plans = planTransports();
 
   if (plans[0].smtpUrl) {
