@@ -63,6 +63,9 @@ const sendBulkMail = async (req, res) => {
       record,
     });
   } catch (error) {
+    console.log("MAIL ERROR:", error);
+
+    
     const record = await EmailRecord.create({
       subject,
       body,
