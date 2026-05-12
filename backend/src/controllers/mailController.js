@@ -42,8 +42,20 @@ const sendBulkMail = async (req, res) => {
     return res.status(400).json({ message: validationError });
   }
 
+  let transporter;
   try {
-    const transporter = getTransporter();
+    transporter = getTransporter();
+  } catch (configError) {
+    if (configError.code === "MAIL_CONFIG_MISSING") {
+      return res.status(503).json({
+        message: configError.message,
+        error: "Set MAIL_USER and MAIL_PASS on the server (Render → Environment).",
+      });
+    }
+    throw configError;
+  }
+
+  try {
     await transporter.sendMail({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: recipients.join(", "),
@@ -63,20 +75,34 @@ const sendBulkMail = async (req, res) => {
       record,
     });
   } catch (error) {
-    console.log("MAIL ERROR:", error);
+    console.error("[mail] send failed:", error.message, error.responseCode || "");
 
-    
-    const record = await EmailRecord.create({
-      subject,
-      body,
-      recipients,
-      status: "failed",
-      errorMessage: error.message,
-    });
+    let record = null;
+    try {
+      record = await EmailRecord.create({
+        subject,
+        body,
+        recipients,
+        status: "failed",
+        errorMessage: error.message,
+      });
+    } catch (dbErr) {
+      console.error("[mail] could not save failed record:", dbErr.message);
+    }
+
+    let detail = error.message || "SMTP error";
+    if (/Invalid login|535|534|EAUTH|authentication failed/i.test(detail)) {
+      detail +=
+        " Use a 16-character Google App Password (not your Gmail password).";
+    }
+    if (/timeout|ETIMEDOUT|ECONNRESET/i.test(detail)) {
+      detail +=
+        " Try GMAIL_SMTP_PORT=587 in env if port 465 is blocked.";
+    }
 
     return res.status(500).json({
       message: "Failed to send email.",
-      error: error.message,
+      error: detail,
       record,
     });
   }
